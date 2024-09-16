@@ -44,14 +44,6 @@
             color: white;
         }
 
-        #history {
-            position: absolute;
-            top: 80px;
-            left: 20px;
-            font-size: 18px;
-            color: white;
-        }
-
         #cronometro {
             position: absolute;
             top: 5%;
@@ -178,18 +170,20 @@
     const modal = document.getElementById('modal');
     const startModal = document.getElementById('start-button');
     const video = document.getElementById('video')
+    let countdown = 90
 
     // Exibe o modal
     modal.style.display = 'block';
 
     // Evento de clique para o botão de iniciar
     startModal.addEventListener('click', () => {
+        countdown = 90
         modal.style.display = 'none';
         gameArea.style.display = 'flex'
         scoreElement.style.display = 'block'
         ambulance.style.display = 'block'
         currentImageElement.style.display = 'flex'
-        let countdown = 90
+
 
         const level = getSelectedDifficulty()
         if (level === 'easy') {
@@ -229,8 +223,8 @@
                 if (countdown <= 0) {
                     clearInterval(countdownInterval);
                     countdownElement.style.display = 'none';
+                    finishGame()
                 }
-                finishGame()
             }, 1000);
         }
 
@@ -283,7 +277,6 @@
     }
 
     function startGame(tempoTrocaImage) {
-
         score = 0;
         // Função para mudar a imagem a cada 1 segundo
         function changeImage() {
@@ -361,7 +354,7 @@
             alert("Voce não é homem")
             modal.style.display = 'block'
         }
-        history.push(score)
+        countdown = 0
 
     }
 </script>
