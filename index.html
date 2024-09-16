@@ -205,7 +205,7 @@
         scoreElement.style.display = 'block'
         ambulance.style.display = 'block'
         currentImageElement.style.display = 'flex'
-        let countdown = 10
+        let countdown = 90
 
         const level = getSelectedDifficulty()
         if (level === 'easy') {
@@ -224,7 +224,7 @@
         } else if (level === 'medium') {
             const countdownElement = document.getElementById('cronometro');
             countdownElement.style.display = 'block';
-            startGame(1000);
+            startGame(500);
             const countdownInterval = setInterval(() => {
                 countdownElement.textContent = countdown.toString();
                 countdown--;
@@ -238,7 +238,7 @@
             const countdownElement = document.getElementById('cronometro');
             countdownElement.style.display = 'block';
 
-            startGame(1000);
+            startGame(200);
             const countdownInterval = setInterval(() => {
                 countdownElement.textContent = countdown.toString();
                 countdown--;
@@ -246,6 +246,7 @@
                     clearInterval(countdownInterval);
                     countdownElement.style.display = 'none';
                 }
+                finishGame()
             }, 1000);
         }
 
