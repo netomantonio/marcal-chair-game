@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cadeirada</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #game-area {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+        }
+
+        .chair {
+            display: none;
+            position: absolute;
+            pointer-events: none;
+            transition: transform 0.2s ease; /* Transição suave para o movimento */
+        }
+
+        .chair.move {
+            transform: translate3d(0px, 0px, 0px) rotate(-90deg); /* Pequeno movimento de balançar */
+        }
+
+        #score {
+            display: none;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            color: white;
+        }
+
+        #history {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            font-size: 18px;
+            color: white;
+        }
+
+        #cronometro {
+            position: absolute;
+            top: 5%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 64px;
+            color: #ff0202;
+        }
+
+        .correct {
+            border: 15px solid limegreen;
+            transition: border 0.2s ease;
+        }
+
+        .incorrect {
+            border: 15px solid red;
+            transition: border 0.2s ease;
+        }
+
+        /* Ambulância e animação */
+        #ambulance {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 200px;
+        }
+
+        .drive-off {
+            transform: translateX(100vw);
+            transition: transform 4s ease-out;
+        }
+
+        /* Imagem rolando até a ambulância */
+        .move-to-ambulance {
+            position: absolute;
+            transition: transform 2s ease-out;
+        }
+
+        #current-image {
+            display: none;
+        }
+
+        #video {
+            display: none;
+        }
+    </style>
+</head>
+<body style="background-image: url('./imgs/scene.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; height: 100vh; margin: 0;">
+<div id="game-area" style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+    <img id="current-image" src="" alt="image"
+         style="width: 250px; height: 400px; object-fit: cover; border-radius: 50%; padding: 5px; box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.6), 0 0 60px rgba(0, 255, 255, 0.4), 0 0 80px rgba(0, 255, 255, 0.2); border: 2px solid rgba(0, 255, 255, 0.8);">
+    <video id="video" width="100%">
+        <source src="./video/marcal-ambulancia.mp4" type="video/mp4">
+    </video>
+</div>
+
+<!-- Ambulância -->
+<img id="ambulance" src="./imgs/ambulance.png" alt="ambulance" style="padding-left: 100px"/>
+
+
+<div id="modal"
+     style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9); padding: 30px; border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3); z-index: 101; text-align: center; width: 300px;">
+    <h1 id="modal-title" style="font-family: 'Arial', sans-serif; font-size: 36px; color: #333; margin-bottom: 10px;">
+        Nome do Jogo
+    </h1>
+    <p id="modal-subtitle" style="font-family: 'Arial', sans-serif; font-size: 18px; color: #555; margin-bottom: 20px;">
+        Descrição breve do jogo para preparar o jogador antes de começar.
+    </p>
+    <div style="margin-bottom: 20px;">
+        <label>
+            <input type="radio" name="difficulty" value="easy" style="margin-right: 10px;">
+            Fácil
+        </label>
+        <label>
+            <input type="radio" name="difficulty" value="medium" style="margin-left: 20px; margin-right: 10px;">
+            Médio
+        </label>
+        <label>
+            <input type="radio" name="difficulty" value="hard" style="margin-left: 20px; margin-right: 10px;">
+            Difícil
+        </label>
+    </div>
+    <button id="start-button"
+            style="background-color: #28a745; color: white; font-size: 18px; padding: 10px 20px;
+                 border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);">
+        Iniciar Jogo
+    </button>
+</div>
+
+<img src="./imgs/chair.png" class="chair" id="mouseChair" width="477" height="500" alt="cadeira"/>
+<div id="score">Score: 0</div>
+<div id="cronometro">00</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+
+<div id="history">
+    <h3>HISTORY:</h3><br/>
+    <ul>
+        <!-- Renderizando a lista de scores -->
+        <script>
+            history.forEach(score => {
+                const li = document.createElement('li');
+                li.textContent = `Score: ${score}`;
+                document.querySelector('#history ul').appendChild(li);
+            });
+        </script>
+    </ul>
+</div>
+
+<!-- Adicionando arquivos de áudio -->
+<audio id="error-sound" src="audio/error.mp3"></audio>
+<audio id="correct-sound" src="audio/correct.mp3"></audio>
+<audio id="sirene" src="audio/sirene.mp3"></audio>
+
+<script type="module">
+    // Definindo as imagens e a correta
+    const imagePool = [
+        './imgs/marcal.png',
+        './imgs/bolos.png',
+        './imgs/nao-sei.png',
+        './imgs/nao-sei2.png',
+        './imgs/nao-sei3.png',
+        './imgs/nao-sei4.png',
+        './imgs/nao-sei5.png',
+        './imgs/nunes.png',
+        './imgs/tabata.png',
+    ]
+    let correctImage = imagePool[0]; // Definimos a imagem correta inicialmente
+    let score = 0;
+    const scoreElement = document.getElementById('score');
+    const currentImageElement = document.getElementById('current-image');
+    const gameArea = document.getElementById('game-area');
+    const correctSound = document.getElementById('correct-sound');
+    const sirene = document.getElementById('sirene');
+    const errorSound = document.getElementById('error-sound');
+    const ambulance = document.getElementById('ambulance');
+    const modal = document.getElementById('modal');
+    const startModal = document.getElementById('start-button');
+    const video = document.getElementById('video')
+    let history = [];
+
+    // Exibe o modal
+    modal.style.display = 'block';
+
+    // Evento de clique para o botão de iniciar
+    startModal.addEventListener('click', () => {
+        modal.style.display = 'none';
+        gameArea.style.display = 'flex'
+        scoreElement.style.display = 'block'
+        ambulance.style.display = 'block'
+        currentImageElement.style.display = 'flex'
+        let countdown = 10
+
+        const level = getSelectedDifficulty()
+        if (level === 'easy') {
+            const countdownElement = document.getElementById('cronometro');
+            countdownElement.style.display = 'block';
+            startGame(1000);
+            const countdownInterval = setInterval(() => {
+                countdownElement.textContent = countdown.toString();
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.style.display = 'none';
+                    finishGame()
+                }
+            }, 1000);
+        } else if (level === 'medium') {
+            const countdownElement = document.getElementById('cronometro');
+            countdownElement.style.display = 'block';
+            startGame(1000);
+            const countdownInterval = setInterval(() => {
+                countdownElement.textContent = countdown.toString();
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.style.display = 'none';
+                    finishGame()
+                }
+            }, 1000);
+        } else if (level === 'hard') {
+            const countdownElement = document.getElementById('cronometro');
+            countdownElement.style.display = 'block';
+
+            startGame(1000);
+            const countdownInterval = setInterval(() => {
+                countdownElement.textContent = countdown.toString();
+                countdown--;
+                if (countdown < 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.style.display = 'none';
+                }
+            }, 1000);
+        }
+
+
+    });
+
+    function getSelectedDifficulty() {
+        const difficultyRadios = document.getElementsByName('difficulty');
+        for (const radio of difficultyRadios) {
+            if (radio.checked) {
+                return radio.value;
+            }
+        }
+        return 'easy';
+    }
+
+    function moveToAmbulance() {
+        // Clona a imagem atual
+        const clonedImage = currentImageElement.cloneNode(true);
+
+        // Define o estilo da cópia (posição absoluta para animação)
+        clonedImage.style.position = 'absolute';
+        clonedImage.style.left = currentImageElement.getBoundingClientRect().left + 'px';
+        clonedImage.style.top = currentImageElement.getBoundingClientRect().top + 'px';
+        clonedImage.style.width = currentImageElement.offsetWidth + 'px';
+        clonedImage.style.height = currentImageElement.offsetHeight + 'px';
+        clonedImage.style.borderRadius = currentImageElement.style.borderRadius;
+        clonedImage.style.zIndex = 10;  // Traz a cópia para frente
+
+        // Adiciona a cópia ao body
+        document.body.appendChild(clonedImage);
+
+        // Posição da ambulância e da imagem original
+        const ambulancePosition = ambulance.getBoundingClientRect();
+        const clonedImagePosition = clonedImage.getBoundingClientRect();
+
+        // Calcula a distância para mover a cópia até a ambulância
+        const moveX = ambulancePosition.left - clonedImagePosition.left;
+        const moveY = ambulancePosition.top - clonedImagePosition.top;
+
+        // Aplica a animação de movimento e escala para a cópia
+        clonedImage.style.transition = 'transform 2s ease-out, opacity 2s ease-out, width 2s ease-out, height 2s ease-out';
+        clonedImage.style.transform = `translate(${moveX}px, ${moveY}px) scale(0)`; // Reduz o tamanho até zero
+        clonedImage.style.opacity = 0; // Gradualmente desaparece
+
+        // Remove a cópia do DOM após a animação terminar
+        setTimeout(() => {
+            document.body.removeChild(clonedImage);
+        }, 1200); // Após 2 segundos, a cópia é removida
+    }
+
+    function startGame(tempoTrocaImage) {
+
+        score = 0;
+        // Função para mudar a imagem a cada 1 segundo
+        function changeImage() {
+            const randomIndex = Math.floor(Math.random() * imagePool.length);
+            currentImageElement.src = imagePool[randomIndex];
+        }
+
+        // Atualiza o score
+        function updateScore(points) {
+            score += points;
+            scoreElement.textContent = `Score: ${score}`;
+        }
+
+
+        setInterval(changeImage, tempoTrocaImage);
+
+        // Verifica se a cadeirada é correta ao clicar
+        gameArea.addEventListener('click', () => {
+            // Extrair apenas o nome da imagem (por exemplo, 'bolos.png') da URL completa
+            const clickedImageName = currentImageElement.src.split('/').pop(); // Pega apenas o nome do arquivo
+            const correctImageName = correctImage.split('/').pop(); // Pega o nome da imagem correta
+
+            // Compara apenas o nome do arquivo da imagem
+            if (clickedImageName === correctImageName) {
+                updateScore(10); // Acertou a imagem correta, ganha pontos
+                correctSound.play()
+                gameArea.classList.remove('incorrect')
+                gameArea.classList.add('correct')
+                moveToAmbulance()
+            } else {
+                console.log("errou")
+                updateScore(-5); // Errou, perde pontos
+                errorSound.play()
+                gameArea.classList.remove('correct')
+                gameArea.classList.add('incorrect')
+                moveToAmbulance()
+            }
+        });
+
+        // Transformando o ponteiro do mouse em uma cadeira
+        const mouseChair = document.getElementById('mouseChair');
+        window.addEventListener('mousemove', (event) => {
+            mouseChair.style.left = event.pageX - 135 + 'px';
+            mouseChair.style.top = event.pageY - 35 + 'px';
+        });
+        mouseChair.style.display = 'block'
+        document.body.style.cursor = 'none'
+
+        // Detectar o clique para animar a cadeira
+        window.addEventListener('click', () => {
+            // Adiciona a classe de movimento
+            mouseChair.classList.add('move');
+
+            // Remove a classe após 200ms para restaurar a posição original
+            setTimeout(() => {
+                mouseChair.classList.remove('move');
+            }, 200);
+        });
+    }
+
+    function finishGame() {
+        gameArea.style.display = 'none';
+        scoreElement.style.display = 'none';
+        currentImageElement.style.display = 'none';
+        ambulance.style.display = 'block';
+        document.getElementById('mouseChair').style.display = 'none';
+        if (score > 0) {
+            ambulance.classList.add('drive-off');
+            video.play();
+            setTimeout(() => {
+                modal.style.display = 'block'
+                video.stop()
+            }, 5000)
+        } else {
+            alert("Voce não é homem")
+            modal.style.display = 'block'
+        }
+        history.push(score)
+
+    }
+</script>
+</body>
+</html>
