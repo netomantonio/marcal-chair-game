@@ -226,7 +226,7 @@
             const countdownInterval = setInterval(() => {
                 countdownElement.textContent = countdown.toString();
                 countdown--;
-                if (countdown < 0) {
+                if (countdown <= 0) {
                     clearInterval(countdownInterval);
                     countdownElement.style.display = 'none';
                 }
