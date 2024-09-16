@@ -149,20 +149,6 @@
 <div id="cronometro">00</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
 
-<div id="history">
-    <h3>HISTORY:</h3><br/>
-    <ul>
-        <!-- Renderizando a lista de scores -->
-        <script>
-            history.forEach(score => {
-                const li = document.createElement('li');
-                li.textContent = `Score: ${score}`;
-                document.querySelector('#history ul').appendChild(li);
-            });
-        </script>
-    </ul>
-</div>
-
 <!-- Adicionando arquivos de áudio -->
 <audio id="error-sound" src="audio/error.mp3"></audio>
 <audio id="correct-sound" src="audio/correct.mp3"></audio>
@@ -187,13 +173,11 @@
     const currentImageElement = document.getElementById('current-image');
     const gameArea = document.getElementById('game-area');
     const correctSound = document.getElementById('correct-sound');
-    const sirene = document.getElementById('sirene');
     const errorSound = document.getElementById('error-sound');
     const ambulance = document.getElementById('ambulance');
     const modal = document.getElementById('modal');
     const startModal = document.getElementById('start-button');
     const video = document.getElementById('video')
-    let history = [];
 
     // Exibe o modal
     modal.style.display = 'block';
