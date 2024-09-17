@@ -74,7 +74,7 @@
 
         .drive-off {
             transform: translateX(100vw);
-            transition: transform 4s ease-out;
+            transition: transform 10s ease-out;
         }
 
         /* Imagem rolando até a ambulância */
@@ -87,8 +87,14 @@
             display: none;
         }
 
-        #video {
+        #video-modal, #modal-video {
             display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
         }
     </style>
 </head>
@@ -96,13 +102,18 @@
 <div id="game-area" style="display: flex; justify-content: center; align-items: center; height: 100vh;">
     <img id="current-image" src="" alt="image"
          style="width: 250px; height: 400px; object-fit: cover; border-radius: 50%; padding: 5px; box-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.6), 0 0 60px rgba(0, 255, 255, 0.4), 0 0 80px rgba(0, 255, 255, 0.2); border: 2px solid rgba(0, 255, 255, 0.8);">
-    <video id="video" width="100%">
-        <source src="./video/marcal-ambulancia.mp4" type="video/mp4">
-    </video>
 </div>
 
+<div id="video-modal"
+     style="display: flex; justify-content: center; align-items: center; height: 100vh; top: 50%; left:50%">
+    <video style="width: 250px; height: 400px;"  id="modal-video">
+        <source src="./video/marcal-ambulancia.mp4" type="video/mp4">
+        Seu navegador não suporta o elemento de vídeo.
+    </video>
+</div>
 <!-- Ambulância -->
 <img id="ambulance" src="./imgs/ambulance.png" alt="ambulance" style="padding-left: 100px"/>
+
 
 
 <div id="modal"
@@ -117,7 +128,7 @@
     </p>
     <div style="margin-bottom: 20px;">
         <label>
-            <input type="radio" name="difficulty" value="easy" style="margin-right: 10px;">
+            <input type="radio" name="difficulty" value="easy" style="margin-right: 10px;" checked>
             Fácil
         </label>
         <label>
@@ -136,6 +147,23 @@
     </button>
 </div>
 
+<div id="score-modal"
+     style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9); padding: 30px; border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3); z-index: 101; text-align: center; width: 300px;">
+    <h1 style="font-family: 'Arial', sans-serif; font-size: 36px; color: #333; margin-bottom: 10px;">
+        Resultado
+    </h1>
+    <p id="final-score" style="font-family: 'Arial', sans-serif; font-size: 24px; color: #555; margin-bottom: 20px;">
+        Score: 0
+    </p>
+    <button id="play-again-button"
+            style="background-color: #28a745; color: white; font-size: 18px; padding: 10px 20px;
+                 border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);">
+        Jogar Novamente
+    </button>
+</div>
+
 <img src="./imgs/chair.png" class="chair" id="mouseChair" width="477" height="500" alt="cadeira"/>
 <div id="score">Score: 0</div>
 <div id="cronometro">00</div>
@@ -145,6 +173,7 @@
 <audio id="error-sound" src="audio/error.mp3"></audio>
 <audio id="correct-sound" src="audio/correct.mp3"></audio>
 <audio id="sirene" src="audio/sirene.mp3"></audio>
+<audio id="provocar" src="audio/marcal-provocando.mp3"></audio>
 
 <script type="module">
     // Definindo as imagens e a correta
@@ -158,9 +187,11 @@
         './imgs/nao-sei5.png',
         './imgs/nunes.png',
         './imgs/tabata.png',
-    ]
+    ];
     let correctImage = imagePool[0]; // Definimos a imagem correta inicialmente
     let score = 0;
+    let gameInterval;
+    let countdownInterval;
     const scoreElement = document.getElementById('score');
     const currentImageElement = document.getElementById('current-image');
     const gameArea = document.getElementById('game-area');
@@ -169,65 +200,31 @@
     const ambulance = document.getElementById('ambulance');
     const modal = document.getElementById('modal');
     const startModal = document.getElementById('start-button');
-    const video = document.getElementById('video')
-    let countdown = 90
+    const videoModal = document.getElementById('video-modal');
+    const modalVideo = document.getElementById('modal-video');
+    const scoreModal = document.getElementById('score-modal');
+    const finalScoreElement = document.getElementById('final-score');
+    const playAgainButton = document.getElementById('play-again-button');
+    const mouseChair = document.getElementById('mouseChair');
+    const sirene = document.getElementById('sirene');
+    const provocar = document.getElementById('provocar');
+    let countdown = 20;
 
     // Exibe o modal
     modal.style.display = 'block';
 
     // Evento de clique para o botão de iniciar
-    startModal.addEventListener('click', () => {
-        countdown = 90
-        modal.style.display = 'none';
-        gameArea.style.display = 'flex'
-        scoreElement.style.display = 'block'
-        ambulance.style.display = 'block'
-        currentImageElement.style.display = 'flex'
+    startModal.addEventListener('click', startGame);
 
-
-        const level = getSelectedDifficulty()
-        if (level === 'easy') {
-            const countdownElement = document.getElementById('cronometro');
-            countdownElement.style.display = 'block';
-            startGame(1000);
-            const countdownInterval = setInterval(() => {
-                countdownElement.textContent = countdown.toString();
-                countdown--;
-                if (countdown <= 0) {
-                    clearInterval(countdownInterval);
-                    countdownElement.style.display = 'none';
-                    finishGame()
-                }
-            }, 1000);
-        } else if (level === 'medium') {
-            const countdownElement = document.getElementById('cronometro');
-            countdownElement.style.display = 'block';
-            startGame(500);
-            const countdownInterval = setInterval(() => {
-                countdownElement.textContent = countdown.toString();
-                countdown--;
-                if (countdown <= 0) {
-                    clearInterval(countdownInterval);
-                    countdownElement.style.display = 'none';
-                    finishGame()
-                }
-            }, 1000);
-        } else if (level === 'hard') {
-            const countdownElement = document.getElementById('cronometro');
-            countdownElement.style.display = 'block';
-
-            startGame(200);
-            const countdownInterval = setInterval(() => {
-                countdownElement.textContent = countdown.toString();
-                countdown--;
-                if (countdown <= 0) {
-                    clearInterval(countdownInterval);
-                    countdownElement.style.display = 'none';
-                    finishGame()
-                }
-            }, 1000);
-        }
-
+    playAgainButton.addEventListener('click', () => {
+        ambulance.classList.remove('drive-off');
+        sirene.pause();
+        scoreModal.style.display = 'none';
+        modalVideo.currentTime = 0;
+        modalVideo.pause();
+        videoModal.style.display = 'none';
+        modalVideo.style.display = 'none';
+        modal.style.display = 'block';
     });
 
     function getSelectedDifficulty() {
@@ -272,90 +269,135 @@
         // Remove a cópia do DOM após a animação terminar
         setTimeout(() => {
             document.body.removeChild(clonedImage);
-        }, 1200); // Após 2 segundos, a cópia é removida
+        }, 2000); // Após 2 segundos (2000ms), a cópia é removida
     }
 
-    function startGame(tempoTrocaImage) {
+    function initializeGameVariables() {
         score = 0;
-        // Função para mudar a imagem a cada 1 segundo
-        function changeImage() {
-            const randomIndex = Math.floor(Math.random() * imagePool.length);
-            currentImageElement.src = imagePool[randomIndex];
-        }
-
-        // Atualiza o score
-        function updateScore(points) {
-            score += points;
-            scoreElement.textContent = `Score: ${score}`;
-        }
-
-
-        setInterval(changeImage, tempoTrocaImage);
-
-        // Verifica se a cadeirada é correta ao clicar
-        gameArea.addEventListener('click', () => {
-            // Extrair apenas o nome da imagem (por exemplo, 'bolos.png') da URL completa
-            const clickedImageName = currentImageElement.src.split('/').pop(); // Pega apenas o nome do arquivo
-            const correctImageName = correctImage.split('/').pop(); // Pega o nome da imagem correta
-
-            // Compara apenas o nome do arquivo da imagem
-            if (clickedImageName === correctImageName) {
-                updateScore(10); // Acertou a imagem correta, ganha pontos
-                correctSound.play()
-                gameArea.classList.remove('incorrect')
-                gameArea.classList.add('correct')
-                moveToAmbulance()
-            } else {
-                console.log("errou")
-                updateScore(-5); // Errou, perde pontos
-                errorSound.play()
-                gameArea.classList.remove('correct')
-                gameArea.classList.add('incorrect')
-                moveToAmbulance()
-            }
-        });
-
-        // Transformando o ponteiro do mouse em uma cadeira
-        const mouseChair = document.getElementById('mouseChair');
-        window.addEventListener('mousemove', (event) => {
-            mouseChair.style.left = event.pageX - 135 + 'px';
-            mouseChair.style.top = event.pageY - 35 + 'px';
-        });
-        mouseChair.style.display = 'block'
-        document.body.style.cursor = 'none'
-
-        // Detectar o clique para animar a cadeira
-        window.addEventListener('click', () => {
-            // Adiciona a classe de movimento
-            mouseChair.classList.add('move');
-
-            // Remove a classe após 200ms para restaurar a posição original
-            setTimeout(() => {
-                mouseChair.classList.remove('move');
-            }, 200);
-        });
+        countdown = 20;
+        clearInterval(gameInterval);  // Limpa o intervalo anterior caso exista
+        clearInterval(countdownInterval); // Limpa o intervalo do cronômetro
+        scoreElement.textContent = `Score: 0`;
+        document.body.style.cursor = 'none';
+        mouseChair.style.display = 'block';
+        mouseChair.style.left = '0px';
+        modalVideo.currentTime = 0;
+        modalVideo.pause();
+        videoModal.style.display = 'none';
+        modalVideo.style.display = 'none';
+        mouseChair.style.top = '0px';
+        gameArea.style.display = 'flex';
+        scoreElement.style.display = 'block';
+        currentImageElement.style.display = 'block';
+        ambulance.style.display = 'block';
+        return getSelectedDifficulty();
     }
+
+    function startGame() {
+        const level = initializeGameVariables();
+        modal.style.display = 'none';
+
+        let tempoTrocaImage;
+        const countdownElement = document.getElementById('cronometro');
+        countdownElement.style.display = 'block';
+
+        if (level === 'easy') {
+            tempoTrocaImage = 1000;
+        } else if (level === 'medium') {
+            tempoTrocaImage = 500;
+        } else if (level === 'hard') {
+            tempoTrocaImage = 200;
+        }
+
+        gameInterval = setInterval(changeImage, tempoTrocaImage);
+
+        countdownInterval = setInterval(() => {
+            countdownElement.textContent = countdown.toString();
+            countdown--;
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                clearInterval(gameInterval);
+                countdownElement.style.display = 'none';
+                finishGame();
+            }
+        }, 1000);
+    }
+
+    function changeImage() {
+        const randomIndex = Math.floor(Math.random() * imagePool.length);
+        currentImageElement.src = imagePool[randomIndex];
+    }
+
+    function updateScore(points) {
+        score += points;
+        scoreElement.textContent = `Score: ${score}`;
+    }
+
+    gameArea.addEventListener('click', () => {
+        // Extrair apenas o nome da imagem (por exemplo, 'bolos.png') da URL completa
+        const clickedImageName = currentImageElement.src.split('/').pop(); // Pega apenas o nome do arquivo
+        const correctImageName = correctImage.split('/').pop(); // Pega o nome da imagem correta
+
+        // Compara apenas o nome do arquivo da imagem
+        if (clickedImageName === correctImageName) {
+            updateScore(10); // Acertou a imagem correta, ganha pontos
+            correctSound.play();
+            gameArea.classList.remove('incorrect');
+            gameArea.classList.add('correct');
+            moveToAmbulance();
+        } else {
+            updateScore(-5); // Errou, perde pontos
+            errorSound.play();
+            gameArea.classList.remove('correct');
+            gameArea.classList.add('incorrect');
+            moveToAmbulance();
+        }
+    });
+
+    window.addEventListener('mousemove', (event) => {
+        mouseChair.style.left = event.pageX - 135 + 'px';
+        mouseChair.style.top = event.pageY - 35 + 'px';
+    });
+
+    window.addEventListener('click', () => {
+        mouseChair.classList.add('move');
+        setTimeout(() => {
+            mouseChair.classList.remove('move');
+        }, 200);
+    });
 
     function finishGame() {
         gameArea.style.display = 'none';
         scoreElement.style.display = 'none';
         currentImageElement.style.display = 'none';
-        ambulance.style.display = 'block';
-        document.getElementById('mouseChair').style.display = 'none';
+        mouseChair.style.display = 'none';
+        document.body.style.cursor = 'auto';
+
         if (score > 0) {
             ambulance.classList.add('drive-off');
-            video.play();
-            setTimeout(() => {
-                modal.style.display = 'block'
-                video.stop()
-            }, 5000)
-        } else {
-            alert("Voce não é homem")
-            modal.style.display = 'block'
-        }
-        countdown = 0
+            sirene.play();
+            videoModal.style.display = 'block';
+            modalVideo.style.display = 'block'; // Certifique-se de que `#modal-video` esteja visível
+            modalVideo.play();
 
+            modalVideo.onended = () => {
+                videoModal.style.display = 'none';
+                finalScoreElement.textContent = `Score: ${score}`;
+                scoreModal.style.display = 'block';
+            };
+        } else {
+            provocar.play()
+            provocar.onended = () => {
+                finalScoreElement.textContent = `Score: ${score}`;
+                scoreModal.style.display = 'block';
+            }
+        }
     }
+
+    // Adicionado para capturar erros de vídeo
+    modalVideo.addEventListener('error', (event) => {
+        console.error('Erro ao carregar o vídeo:', event);
+    });
 </script>
 </body>
 </html>
